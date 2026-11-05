@@ -1,11 +1,13 @@
-
 {
   "id": "dev.saltmai.random",
   "name": "SaltMai Random",
-  "version": "0.8.0",
-  "versionCode": 21,
+  "version": "1.0.0",
+  "versionCode": 22,
   "apiVersion": 2,
   "description": "舞萌DX国服随机歌曲背屏应用",
   "author": "SaltMai",
-  "capabilities": ["network", "files"]
+  "capabilities": [
+    "network",
+    "files"
+  ]
 }
