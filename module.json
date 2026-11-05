@@ -1,13 +1,10 @@
 {
   "id": "dev.saltmai.random",
-  "name": "SaltMai Random",
+  "name": "舞萌随机歌曲",
   "version": "1.0.0",
   "versionCode": 22,
   "apiVersion": 2,
-  "description": "舞萌DX国服随机歌曲背屏应用",
-  "author": "SaltMai",
-  "capabilities": [
-    "network",
-    "files"
-  ]
+  "description": "长按曲绘随机歌曲，左滑进行等级、版本、难度筛选，支持记忆随机历史、清除曲绘缓存。",
+  "author": "Lahantzi",
+  "capabilities": ["network", "files"]
 }

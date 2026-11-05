@@ -185,7 +185,7 @@ jobs:
 
           gh release create "v${RELEASE_VERSION}" "$ZIP" \
             --target "$(git rev-parse HEAD)" \
-            --title "SaltMai Random v${RELEASE_VERSION}" \
+            --title "舞萌随机歌曲 v${RELEASE_VERSION}" \
             --notes "曲库与别名更新。" \
             --latest
 
