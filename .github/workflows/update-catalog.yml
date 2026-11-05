@@ -1,11 +1,26 @@
 
 name: SaltMai 曲库更新
 
+
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 执行模式
+        type: choice
+        required: true
+        default: check
+        options:
+          - check
+          - release
+      version:
+        description: 发布版本号，例如 0.8.0
+        type: string
+        required: false
 
 permissions:
-  contents: read
+  contents: write
+
 
 jobs:
   update-catalog:
@@ -20,6 +35,29 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+
+      - name: 获取官方模块构建工具
+        if: ${{ inputs.mode == 'release' }}
+        uses: actions/checkout@v4
+        with:
+          repository: finall1008/rear-card-bridge
+          path: .bridge-toolkit
+
+
+      - name: 设置发布版本
+        if: ${{ inputs.mode == 'release' }}
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/set-release-version.cjs
+
+          if gh release view "v${RELEASE_VERSION}" >/dev/null 2>&1; then
+            echo "该版本已经发布，请填写新版本号"
+            exit 1
+          fi
+
 
       - name: 下载最新落雪曲库与别名
         run: |
@@ -100,3 +138,54 @@ jobs:
             data/lxns.json
             data/lxns-aliases.json
           retention-days: 3
+
+
+      - name: 构建模块 ZIP
+        if: ${{ inputs.mode == 'release' }}
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          npm ci --prefix .bridge-toolkit/tools/card-build
+
+          ZIP="saltmai-random-v${RELEASE_VERSION}.zip"
+
+          node .bridge-toolkit/tools/card-build/bin/card-build.js \
+            . "$ZIP"
+
+          unzip -tq "$ZIP"
+
+      - name: 更新 GitHub 仓库曲库
+        if: ${{ inputs.mode == 'release' }}
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            module.json \
+            data/lxns.json \
+            data/lxns-aliases.json \
+            card/assets/catalog.js
+
+          if git diff --cached --quiet; then
+            echo "曲库与版本数据没有变化"
+          else
+            git commit -m "Update SaltMai Random v${RELEASE_VERSION}"
+            git push origin HEAD:main
+          fi
+
+      - name: 发布 GitHub Release
+        if: ${{ inputs.mode == 'release' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          ZIP="saltmai-random-v${RELEASE_VERSION}.zip"
+
+          gh release create "v${RELEASE_VERSION}" "$ZIP" \
+            --target "$(git rev-parse HEAD)" \
+            --title "SaltMai Random v${RELEASE_VERSION}" \
+            --notes "曲库与别名更新。" \
+            --latest
+
