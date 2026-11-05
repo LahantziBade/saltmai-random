@@ -1,0 +1,51 @@
+
+name: SaltMai 曲库更新
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 获取仓库代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 下载最新落雪曲库与别名
+        run: |
+          curl -fLsS --retry 2 --max-time 90 \
+            "https://maimai.lxns.net/api/v0/maimai/song/list" \
+            -o data/lxns.json
+
+          curl -fLsS --retry 2 --max-time 90 \
+            "https://maimai.lxns.net/api/v0/maimai/alias/list" \
+            -o data/lxns-aliases.json
+
+      - name: 生成 SaltMai 曲库
+        run: |
+          node --check scripts/build-catalog.cjs
+          node scripts/build-catalog.cjs
+
+      - name: 检查生成结果
+        run: |
+          node -e "global.window={};require('./card/assets/catalog.js');const s=window.SALTMAI_CATALOG.songs;if(s.length<100||s.some(x=>x[4].length>3))throw Error('曲库异常');console.log('检查通过：'+s.length+' 首歌曲');"
+
+      - name: 保存曲库文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: saltmai-catalog
+          path: |
+            card/assets/catalog.js
+            data/lxns.json
+            data/lxns-aliases.json
+          retention-days: 3
