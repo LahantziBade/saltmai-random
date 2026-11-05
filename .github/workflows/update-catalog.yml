@@ -40,6 +40,22 @@ jobs:
         run: |
           node -e "global.window={};require('./card/assets/catalog.js');const s=window.SALTMAI_CATALOG.songs;if(s.length<100||s.some(x=>x[4].length>3))throw Error('曲库异常');console.log('检查通过：'+s.length+' 首歌曲');"
 
+
+      - name: 检查 R2 现有曲绘
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          aws --version
+
+          aws s3 ls "s3://saltmai-assets/maimai/jackets/" \
+            --recursive \
+            --endpoint-url "$R2_ENDPOINT" \
+            | awk '$4 ~ /\.webp$/ { count++ } END { print "R2 WebP 曲绘数量:", count + 0 }'
+
+
       - name: 保存曲库文件
         uses: actions/upload-artifact@v4
         with:
