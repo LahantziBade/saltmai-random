@@ -41,19 +41,54 @@ jobs:
           node -e "global.window={};require('./card/assets/catalog.js');const s=window.SALTMAI_CATALOG.songs;if(s.length<100||s.some(x=>x[4].length>3))throw Error('曲库异常');console.log('检查通过：'+s.length+' 首歌曲');"
 
 
-      - name: 检查 R2 现有曲绘
+
+      - name: 对比 R2 曲绘
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         run: |
-          aws --version
-
           aws s3 ls "s3://saltmai-assets/maimai/jackets/" \
             --recursive \
             --endpoint-url "$R2_ENDPOINT" \
-            | awk '$4 ~ /\.webp$/ { count++ } END { print "R2 WebP 曲绘数量:", count + 0 }'
+            > r2-cover-list.txt
+
+          node scripts/find-missing-covers.cjs
+
+      - name: 补充缺失曲绘到 R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          COUNT=$(node -p "require('./missing-covers.json').length")
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "R2 曲绘已齐全，无需下载"
+            exit 0
+          fi
+
+          npm install --no-save --no-package-lock sharp
+
+          node scripts/build-covers.cjs --missing-only
+
+          for id in $(node -p "require('./missing-covers.json').join(' ')"); do
+            FILE="dist-covers/$id.webp"
+
+            if [ -f "$FILE" ]; then
+              aws s3 cp "$FILE" \
+                "s3://saltmai-assets/maimai/jackets/$id.webp" \
+                --endpoint-url "$R2_ENDPOINT" \
+                --content-type "image/webp" \
+                --only-show-errors
+
+              echo "已上传: $id.webp"
+            else
+              echo "未能获取曲绘: $id"
+            fi
+          done
 
 
       - name: 保存曲库文件

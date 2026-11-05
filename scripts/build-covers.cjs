@@ -16,7 +16,28 @@ const catalogJs = fs.readFileSync(
 vm.runInNewContext(catalogJs, sandbox, { timeout: 5000 });
 
 const songs = sandbox.window.SALTMAI_CATALOG.songs;
-const ids = [...new Set(songs.map(song => song[0]))];
+const allIds = [...new Set(songs.map(song => song[0]))];
+
+let ids = allIds;
+
+if (process.argv.includes('--missing-only')) {
+  const missingFile = path.join(
+    root, 'missing-covers.json'
+  );
+
+  const missing = JSON.parse(
+    fs.readFileSync(missingFile, 'utf8')
+  );
+
+  if (!Array.isArray(missing)) {
+    throw new Error('缺失曲绘清单格式错误');
+  }
+
+  const validIds = new Set(allIds);
+
+  ids = [...new Set(missing.map(Number))]
+    .filter(id => validIds.has(id));
+}
 
 let cursor = 0;
 let success = 0;
